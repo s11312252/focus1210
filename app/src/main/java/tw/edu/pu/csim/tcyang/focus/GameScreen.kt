@@ -27,6 +27,7 @@ import kotlin.random.Random
 fun GameScreen(level: String, onBackToMenu: () -> Unit) {
     val colors = listOf(Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF2196F3), Color(0xFF4CAF50), Color(0xFFFF9800))
 
+
     data class Config(val time: Int, val size: Dp, val distractors: Int, val interval: Long)
     val config = when (level) {
         "易" -> Config(60, 110.dp, 3, 1800L)
