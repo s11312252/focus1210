@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,13 +25,13 @@ import kotlin.random.Random
 
 @Composable
 fun GameScreen(level: String, onBackToMenu: () -> Unit) {
-    val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color.Magenta)
+    val colors = listOf(Color(0xFFE91E63), Color(0xFF9C27B0), Color(0xFF2196F3), Color(0xFF4CAF50), Color(0xFFFF9800))
 
     data class Config(val time: Int, val size: Dp, val distractors: Int, val interval: Long)
     val config = when (level) {
-        "易" -> Config(30, 130.dp, 2, 2000L)
-        "中" -> Config(25, 100.dp, 4, 1500L)
-        else -> Config(20, 80.dp, 6, 1000L)
+        "易" -> Config(60, 110.dp, 3, 1800L)
+        "中" -> Config(45, 90.dp, 6, 1200L)
+        else -> Config(30, 70.dp, 9, 800L)
     }
 
     var score by remember { mutableStateOf(0) }
@@ -38,7 +39,7 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
     var playing by remember { mutableStateOf(true) }
     var target by remember { mutableStateOf(Offset.Zero) }
     var distractors by remember { mutableStateOf(listOf<Offset>()) }
-    var targetColor by remember { mutableStateOf(Color.Red) }
+    var targetColor by remember { mutableStateOf(colors.random()) }
 
     // 倒數計時
     LaunchedEffect(playing) {
@@ -53,15 +54,15 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
     LaunchedEffect(playing) {
         while (playing) {
             delay(config.interval)
-            val x = Random.nextFloat() * 900f + 150f
-            val y = Random.nextFloat() * 1400f + 300f
+            val x = Random.nextFloat() * 800f + 200f
+            val y = Random.nextFloat() * 1200f + 400f
             target = Offset(x, y)
             targetColor = colors.random()
 
             val list = mutableListOf<Offset>()
             repeat(config.distractors) {
                 val angle = Random.nextFloat() * 360f
-                val dist = 200f + Random.nextFloat() * 120f
+                val dist = 160f + Random.nextFloat() * 140f
                 val dx = kotlin.math.cos(Math.toRadians(angle.toDouble())).toFloat() * dist
                 val dy = kotlin.math.sin(Math.toRadians(angle.toDouble())).toFloat() * dist
                 list.add(Offset(x + dx, y + dy))
@@ -70,93 +71,114 @@ fun GameScreen(level: String, onBackToMenu: () -> Unit) {
         }
     }
 
+    // 閃爍動畫
     val scale by rememberInfiniteTransition().animateFloat(
         initialValue = 0.9f,
-        targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse)
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse)
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFBBDEFB))
-            .pointerInput(playing) {
-                if (!playing) return@pointerInput
-                detectTapGestures { offset ->
-                    val distance = sqrt((offset.x - target.x).pow(2) + (offset.y - target.y).pow(2))
-                    if (distance < config.size.value * 1.4f) {
-                        score += when (level) {
-                            "易" -> 10
-                            "中" -> 20
-                            else -> 30
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFB3E5FC))) {
+
+        // 返回 + 難度標籤
+        Row(
+            modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onBackToMenu,
+                modifier = Modifier.background(Color(0xFF42A5F5), CircleShape)
+            ) {
+                Text("返回", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(12.dp))
+            Card(
+                colors = CardDefaults.cardColors(Color(0xFF42A5F5)),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(" $level ", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+            }
+        }
+
+        // 計時器
+        Text(
+            text = String.format("%02d:%02d", timeLeft / 60, timeLeft % 60),
+            fontSize = 48.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1976D2),
+            modifier = Modifier.align(Alignment.TopEnd).padding(24.dp)
+        )
+
+        // 分數
+        Card(
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp),
+            colors = CardDefaults.cardColors(Color.White.copy(alpha = 0.9f)),
+            elevation = CardDefaults.cardElevation(8.dp)
+        ) {
+            Text(
+                " 分數：$score ",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1976D2),
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
+            )
+        }
+
+        // 點擊偵測 + 畫圖
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(playing) {
+                    if (!playing) return@pointerInput
+                    detectTapGestures { offset ->
+                        val d = sqrt((offset.x - target.x).pow(2) + (offset.y - target.y).pow(2))
+                        if (d < config.size.value * 1.3f) {
+                            score += when (level) { "易" -> 10; "中" -> 20; else -> 30 }
                         }
                     }
                 }
-            }
-    ) {
-        // 返回按鈕
-        IconButton(
-            onClick = onBackToMenu,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(56.dp)
-                .background(Color(0xFF42A5F5), CircleShape)
         ) {
-            Text("返回", fontSize = 22.sp, color = Color.White, fontWeight = FontWeight.Bold)
-        }
-
-        // 分數與時間
-        Column(
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 70.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("分數：$score", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(12.dp))
-            Text("剩餘 $timeLeft 秒", fontSize = 32.sp, color = Color.White)
-        }
-
-        // 畫目標與干擾物
-        Canvas(modifier = Modifier.fillMaxSize()) {
             if (playing) {
+                // 目標（閃爍）
                 drawCircle(
                     color = targetColor,
                     radius = config.size.toPx() * scale / 2,
                     center = target
                 )
-                distractors.forEach { pos ->
+                // 干擾物（灰色半透明）
+                distractors.forEach {
                     drawCircle(
-                        color = Color.Gray.copy(alpha = 0.6f),
-                        radius = config.size.toPx() / 3f,
-                        center = pos
+                        color = Color.Gray.copy(alpha = 0.4f),
+                        radius = config.size.toPx() * 0.6f,
+                        center = it
                     )
                 }
             }
         }
 
-        // 遊戲結束畫面
+        // 遊戲結束
         if (!playing) {
             Card(
-                modifier = Modifier.align(Alignment.Center).size(340.dp, 420.dp),
+                modifier = Modifier.align(Alignment.Center).size(360.dp, 480.dp),
                 colors = CardDefaults.cardColors(Color.White),
-                elevation = CardDefaults.cardElevation(20.dp)
+                elevation = CardDefaults.cardElevation(24.dp)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text("遊戲結束！", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
-                    Spacer(Modifier.height(30.dp))
-                    Text("最終得分", fontSize = 28.sp, color = Color.Gray)
-                    Text("$score 分", fontSize = 72.sp, fontWeight = FontWeight.Bold, color = Color(0xFF42A5F5))
-                    Spacer(Modifier.height(50.dp))
+                    Text("遊戲結束！", fontSize = 56.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE91E63))
+                    Spacer(Modifier.height(32.dp))
+                    Text("最終得分", fontSize = 32.sp, color = Color.Gray)
+                    Text("$score 分", fontSize = 80.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
+                    Spacer(Modifier.height(48.dp))
                     Button(
                         onClick = onBackToMenu,
-                        modifier = Modifier.width(240.dp).height(70.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                        modifier = Modifier.width(260.dp).height(70.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                     ) {
-                        Text("回到選單", fontSize = 28.sp, color = Color.White)
+                        Text("回到選單", fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
